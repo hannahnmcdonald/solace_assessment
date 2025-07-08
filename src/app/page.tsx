@@ -1,91 +1,126 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import {
+  Box,
+  Heading, 
+  VStack,
+  HStack,
+  Text,
+  Input,
+  Button,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Spinner
+} from '@chakra-ui/react';
+import { useEffect, useState, useMemo } from "react";
+import { debounce } from 'lodash';
 
 export default function Home() {
   const [advocates, setAdvocates] = useState([]);
   const [filteredAdvocates, setFilteredAdvocates] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log("fetching advocates...");
-    fetch("/api/advocates").then((response) => {
-      response.json().then((jsonResponse) => {
-        setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
+    fetch("/api/advocates")
+      .then((res) => res.json())
+      .then((data) => {
+        setAdvocates(data.data);
+        setFilteredAdvocates(data.data);
+      setIsLoading(false);
       });
-    });
   }, []);
 
-  const onChange = (e) => {
-    const searchTerm = e.target.value;
+  const handleSearch = (term: string) => {
+    const filtered = advocates.filter((a) =>
+      [a.firstName, a.lastName, a.city, a.degree, ...a.specialties, a.yearsOfExperience]
+        .join(" ")
+        .toLowerCase()
+        .includes(term.toLowerCase())
+    );
 
-    document.getElementById("search-term").innerHTML = searchTerm;
-
-    console.log("filtering advocates...");
-    const filteredAdvocates = advocates.filter((advocate) => {
-      return (
-        advocate.firstName.includes(searchTerm) ||
-        advocate.lastName.includes(searchTerm) ||
-        advocate.city.includes(searchTerm) ||
-        advocate.degree.includes(searchTerm) ||
-        advocate.specialties.includes(searchTerm) ||
-        advocate.yearsOfExperience.includes(searchTerm)
-      );
-    });
-
-    setFilteredAdvocates(filteredAdvocates);
+    setFilteredAdvocates(filtered);
   };
 
-  const onClick = () => {
-    console.log(advocates);
+  const debouncedSearch = useMemo(() => debounce(handleSearch, 500), [advocates]);
+
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+      setSearchTerm(term);  
+      debouncedSearch(term);  
+  };
+
+  const onReset = () => {
+    setSearchTerm("");
     setFilteredAdvocates(advocates);
   };
 
+  useEffect(() => {
+  return () => {
+    debouncedSearch.cancel();
+  };
+}, [debouncedSearch]);
+
   return (
-    <main style={{ margin: "24px" }}>
-      <h1>Solace Advocates</h1>
-      <br />
-      <br />
-      <div>
-        <p>Search</p>
-        <p>
-          Searching for: <span id="search-term"></span>
-        </p>
-        <input style={{ border: "1px solid black" }} onChange={onChange} />
-        <button onClick={onClick}>Reset Search</button>
-      </div>
-      <br />
-      <br />
-      <table>
-        <thead>
-          <th>First Name</th>
-          <th>Last Name</th>
-          <th>City</th>
-          <th>Degree</th>
-          <th>Specialties</th>
-          <th>Years of Experience</th>
-          <th>Phone Number</th>
-        </thead>
-        <tbody>
-          {filteredAdvocates.map((advocate) => {
-            return (
-              <tr>
-                <td>{advocate.firstName}</td>
-                <td>{advocate.lastName}</td>
-                <td>{advocate.city}</td>
-                <td>{advocate.degree}</td>
-                <td>
-                  {advocate.specialties.map((s) => (
-                    <div>{s}</div>
-                  ))}
-                </td>
-                <td>{advocate.yearsOfExperience}</td>
-                <td>{advocate.phoneNumber}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </main>
+    <Box p={8}>
+      <Heading mb={6}>Solace Advocates</Heading>
+      <VStack align="start" spacing={4} mb={8}>
+        <Heading size="md" mb={4}>Search</Heading>
+        <HStack>
+          <Input
+            placeholder="Search advocates..."
+            value={searchTerm}
+            onChange={onChange}
+            width="300px"
+          />
+          <Button onClick={onReset}>Reset</Button>
+        </HStack>
+        <Text>
+          Searching for: <b>{searchTerm}</b>
+        </Text>
+      </VStack>
+
+      {isLoading ? (
+          <HStack spacing={4}>
+            <Spinner size="lg" color="teal.500" />
+            <Text>Loading advocates...</Text>
+          </HStack>
+        ) : ( filteredAdvocates.length === 0 ? (
+          <Text>No advocates found.</Text>
+        ) : (
+      <Box overflowX="auto">
+        <Heading size="md" mb={4}>Results</Heading>
+        <Table size="sm">
+          <Thead>
+            <Tr>
+              <Th>First Name</Th>
+              <Th>Last Name</Th>
+              <Th>City</Th>
+              <Th>Degree</Th>
+              <Th>Specialties</Th>
+              <Th>Years</Th>
+              <Th>Phone</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {filteredAdvocates.map((a, i) => (
+              <Tr key={a.id} _hover={{ bg: "blue.100" }}>
+                <Td>{a.firstName}</Td>
+                <Td>{a.lastName}</Td>
+                <Td>{a.city}</Td>
+                <Td>{a.degree}</Td>
+                <Td>{a.specialties.join(", ")}</Td>
+                <Td>{a.yearsOfExperience}</Td>
+                <Td>{a.phoneNumber}</Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Box>
+      ))}
+    </Box>
   );
 }
