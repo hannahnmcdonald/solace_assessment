@@ -1,5 +1,6 @@
 import db from "../../../db";
-import { advocates } from "../../../db/schema";
+// import { advocates } from "../../../db/schema";
+import { advocates } from "../../../db/advocates.ts";
 import { ilike, or, desc } from "drizzle-orm";
 
 export async function GET(request: Request) {
